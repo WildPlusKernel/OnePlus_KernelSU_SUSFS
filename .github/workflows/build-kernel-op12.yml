@@ -74,7 +74,7 @@ jobs:
           cd "$CONFIG/kernel_platform"
           
           echo "Adding KernelSU..."
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
 
       - name: Apply SUSFS Patches
         run: |
@@ -157,7 +157,7 @@ jobs:
           
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
+          sed -i ';$s|echo "\$res"|echo "-A14-simokio-SUSFS-ogki"|'; ./common/scripts/setlocalversion
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
           sed -i 's|^source kernel_platform/oplus/build/oplus_setup.sh \$1 \$2|source kernel_platform/oplus/build/oplus_setup.sh \$1 \$2 \$3 \$4 \$5|' ./oplus/build/oplus_build_kernel.sh
 
