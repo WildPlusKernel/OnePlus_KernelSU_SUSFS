@@ -62,11 +62,10 @@ jobs:
           
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
-          $REPO init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --repo-rev=v2.16
+          $REPO init -u https://github.com/yaap/manifest.git -b fifteen --git-lfs
           
           # Sync repo and apply patches
-          $REPO --version
-          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+          $repo sync -j$(nproc --all) --no-tags --no-clone-bundle --current-branch
 
       - name: Add KernelSU
         run: |
