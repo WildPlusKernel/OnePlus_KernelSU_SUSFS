@@ -1,4 +1,4 @@
-# Wild Plus 内核适用于 Android GKI 2.0 设备及其他机型 [en](README.md) | [cn](README.cn.md)
+# Wild Plus 内核适用于 Android GKI 2.0 设备及其他机型 [en](README.md) | [cn](README_CN.md)
 
 ## 您的设备保修将失效！
 
