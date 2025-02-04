@@ -89,6 +89,9 @@ jobs:
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
           cd ./KernelSU-Next
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
           
           # Apply SUSFS patch for KernelSU
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
