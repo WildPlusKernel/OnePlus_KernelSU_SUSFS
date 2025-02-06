@@ -1,0 +1,124 @@
+name: Build OPPO Find X7 Ultra Kernel (SM8650, Android 15.0.0)
+
+on:
+  workflow_call:  # 允许从其他工作流调用此工作流
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          swap-size-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Set CONFIG Environment Variable
+        run: |
+          echo "CONFIG=find_x7_ultra" >> $GITHUB_ENV
+          echo "CONFIG set to: $CONFIG"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y repo python3 python-is-python3
+
+      - name: Clone Kernel Source
+        run: |
+          echo "Cloning kernel source..."
+          git clone https://github.com/xx2901318208/android_kernel_modules_and_devicetree_oppo_sm8650.git -b oppo/sm8650_v_15.0.0_find_x7_ultra
+          cd android_kernel_modules_and_devicetree_oppo_sm8650
+
+      - name: Initialize and Sync Kernel Source
+        run: |
+          echo "Initializing and syncing kernel source..."
+          repo init -u https://github.com/xx2901318208/android_kernel_modules_and_devicetree_oppo_sm8650.git -b oppo/sm8650_v_15.0.0_find_x7_ultra --depth=1
+          repo sync -c -j$(nproc --all) --no-tags --fail-fast
+
+      - name: Add KernelSU
+        run: |
+          echo "Adding KernelSU..."
+          curl -LSs https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh | bash -
+          cd ./KernelSU-Next/kernel
+          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
+
+      - name: Apply SUSFS Patches
+        run: |
+          echo "Applying SUSFS patches..."
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
+          cp susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+          cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./common/
+          cp susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cd ./KernelSU-Next
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+          cd ../common
+          patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
+
+      - name: Add SUSFS Configuration Settings
+        run: |
+          echo "Adding SUSFS configuration settings..."
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+
+      - name: Run sed and perl Commands
+        run: |
+          echo "Running sed and perl commands..."
+          sed -i 's/check_defconfig//' ./common/build.config.gki
+          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./msm-kernel/scripts/setlocalversion
+          sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
+          sed -i 's/-dirty//' ./common/scripts/setlocalversion
+          sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
+          perl -pi -e 's{UTS_VERSION="\$ $echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN$ "}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
+
+      - name: Build the Kernel
+        run: |
+          echo "Building the kernel..."
+          cd android_kernel_modules_and_devicetree_oppo_sm8650
+          ./build_kernel.sh find_x7_ultra gki
+
+      - name: Create Bootimgs Folder and Copy Images
+        run: |
+          echo "Copying Image..."
+          mkdir -p ./bootimgs
+          cp ./out/dist/Image ./bootimgs/
+
+      - name: Create ZIP Files for Different Formats
+        run: |
+          echo "Creating zip files..."
+          cd ./bootimgs
+          ZIP_NAME="OPPO-Find-X7-Ultra-Kernel-SM8650-Android15.0.0.zip"
+          zip -r "../$ZIP_NAME" ./*
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-find_x7_ultra
+          path: |
+            ./bootimgs/*.zip
