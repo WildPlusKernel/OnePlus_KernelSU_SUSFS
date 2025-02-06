@@ -122,7 +122,3 @@ jobs:
           name: kernel-find_x7_ultra
           path: |
             ./bootimgs/*.zip
-
-      - name: Cleanup workspace
-        run: |
-          rm -rf $GITHUB_WORKSPACE/*
