@@ -115,28 +115,7 @@ jobs:
           echo "Applying next SUSFS patches..."
           cp ../../../kernel_patches/next/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
           patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
-          cp ../../kernel_patches/next/next_hooks.patch ./
-          patch -p1 -F 3 < next_hooks.patch
-          # Apply VFS fix changes directly
-          cd ../  # Move back to kernel_platform directory
-          sed -i '/#include "selinux\/selinux.h"/a \
-          bool ksu_vfs_read_hook = true;\
-          bool ksu_execveat_hook = true;\
-          bool ksu_input_hook = true;\
-          EXPORT_SYMBOL(ksu_vfs_read_hook);\
-          EXPORT_SYMBOL(ksu_execveat_hook);\
-          EXPORT_SYMBOL(ksu_input_hook);' kernel/ksud.c || true
-          sed -i '/#include <linux\/types.h>/a \
-          extern bool ksu_vfs_read_hook;\
-          extern bool ksu_execveat_hook;\
-          extern bool ksu_input_hook;' kernel/ksud.h || true
-          cd common  # Move back to common directory for the next patch
-          cp ../../kernel_patches/69_hide_stuff.patch ./
-          patch -p1 -F 3 < 69_hide_stuff.patch
-          git add -A && git commit -a -m "BUILD Kernel with SUSFS v${{ github.event.inputs.SUSFS_VERSION }}"
-          cd ../msm-kernel
-          git add -A && git commit -a -m "Update for SUSFS"
-         
+          
           # Change to common directory and apply SUSFS patch
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
@@ -189,11 +168,6 @@ jobs:
           # Add additional tmpfs config setting
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-
-          # Add additional tmpfs config setting
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
       - name: Run sed and perl Commands
         run: |
