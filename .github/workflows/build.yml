@@ -194,6 +194,7 @@ jobs:
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
           sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
           sed -i 's/-dirty//' ./external/dtc/scripts/setlocalversion
+          sed -i 's/-dirty//' ./build/kernel/kleaf/workspace_status_stamp.py || echo "No workspace_status_stamp.py!"
 
           sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
           sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
@@ -201,7 +202,6 @@ jobs:
           # Run perl command to modify UTS_VERSION
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./msm-kernel/scripts/mkcompile_h
-          perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./external/dtc/scripts/mkcompile_h
 
       - name: Build the Kernel
         run: |
@@ -211,14 +211,23 @@ jobs:
           echo "Building the kernel..."
           rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
           rm ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          git config --global user.email "bins4us@hotmail.com"
-          git config --global user.name "TheWildJames"
-          git add *
-          git commit -s -a -m "getting rid of -dirty"
-          echo "RECOMPILE_KERNEL=0" >> $GITHUB_ENV
-          echo "LTO=thin" >> $GITHUB_ENV
-          echo "REPACK_IMG=false" >> $GITHUB_ENV
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} gki
+          #git config --global user.email "bins4us@hotmail.com"
+          #git config --global user.name "TheWildJames"
+          #git add *
+          #git commit -s -a -m "getting rid of -dirty"
+          if [ -f ./kernel_platform/build_with_bazel.py ]; then
+            ./kernel_platform/build_with_bazel.py \
+              -t ${{ inputs.soc }} \
+              gki \
+              --jobs=$(nproc --all) \
+              --verbose_failures \
+              --config=stamp \
+              --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+              --ignore_missing_projects \
+              -o "$(pwd)/out"
+          else
+            ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} gki
+          fi
 
       - name: Copy Images
         run: |
