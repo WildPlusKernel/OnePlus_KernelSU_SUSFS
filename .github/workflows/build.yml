@@ -82,6 +82,10 @@ jobs:
           echo "Initializing and syncing kernel source..."
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b ${{ inputs.branch }} -m ${{ inputs.manifest }} --repo-rev=v2.16 --depth=1
           
+          if [[ "${{ inputs.model }}" == "OP10t" ]]; then
+            sed -i -E '/remote="origin"/s/oneplus\/sm8475_v_15.0.0_oneplus_11r/oneplus\/sm8475_v_15.0.0_oneplus_10t/' .repo/manifests/${{ inputs.manifest }}
+          fi
+          
           # Sync repo and apply patches
           repo --version
           repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
