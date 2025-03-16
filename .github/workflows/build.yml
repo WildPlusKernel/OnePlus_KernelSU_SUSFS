@@ -24,7 +24,7 @@ on:
       kernel_version:
         required: true
         type: string
-  
+
 jobs:
   build-kernel-oneplus-kernelsu-susfs:
     runs-on: ubuntu-latest
@@ -41,54 +41,34 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-      - name: Install Repo and Python
+      - name: Install Dependencies
         run: |
-          # Install dependencies
           sudo apt update
-          sudo apt install repo python3 python-is-python3
+          sudo apt install -y repo python3 python-is-python3 build-essential git curl bc libncurses-dev libssl-dev gcc-aarch64-linux-gnu
 
       - name: Set CONFIG Environment Variable
         run: |
           CONFIG="${{ inputs.model }}"
-          
-          # Set CONFIG as an environment variable for future steps
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
-          
           echo "CONFIG set to: $CONFIG"
 
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
-          echo "Cloning AnyKernel3 and other dependencies..."
-          
           ANYKERNEL_BRANCH="gki-2.0"
           SUSFS_BRANCH="gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}"
-
-          # Debug print the branches
-          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
-          echo "Using branch for SUSFS: $SUSFS_BRANCH"
-
-          # Clone repositories using the branch names
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
 
       - name: Initialize and Sync Kernel Source
         run: |
-          echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
-          
-          # Initialize and sync kernel source
-          echo "Initializing and syncing kernel source..."
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b ${{ inputs.branch }} -m ${{ inputs.manifest }} --repo-rev=v2.16 --depth=1
-          
-          # Sync repo and apply patches
-          repo --version
           repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
-      
+
       - name: Add KernelSU
         run: |
-          echo "Adding KernelSU..."
           mkdir -p kernel_workspace/kernel_platform
           cd kernel_workspace/kernel_platform || { echo "Error: Directory not found"; exit 1; }
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
@@ -99,49 +79,33 @@ jobs:
 
       - name: Apply SUSFS Patches
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
-          echo "Applying SUSFS patches..."
-          
-          # Copy SUSFS patches
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-
           cd ./KernelSU-Next
-          
-          echo "Applying next SUSFS patches..."
           cp ../../../kernel_patches/next/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
           patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
-          
-          # Change to common directory and apply SUSFS patch
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
       - name: Apply KSU Hooks
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
-          # Apply additional patch
           cp ../../../kernel_patches/next/next_hooks.patch ./
           patch -p1 --fuzz=3 < ./next_hooks.patch
 
-                    
       - name: Apply Hide Stuff Patches
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
-          # Apply additional patch
           cp ../../../kernel_patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
 
       - name: Add SUSFS Configuration Settings
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
-          echo "Adding configuration settings to gki_defconfig..."
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_WITH_KPROBES=n" >> ./common/arch/arm64/configs/gki_defconfig
 
           # Add KSU configuration settings
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
