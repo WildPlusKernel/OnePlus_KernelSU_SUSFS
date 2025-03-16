@@ -88,16 +88,14 @@ jobs:
       
       - name: Add KernelSU
         run: |
-         echo "Changing to configuration directory: $CONFIG..."
-         cd "$CONFIG/kernel_platform" || { echo "Error: Directory not found"; exit 1; }
-    
-         echo "Adding KernelSU..."
-         cd kernel_workspace/kernel_platform || { echo "Error: Directory not found"; exit 1; }
-         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-         cd KernelSU-Next || { echo "Error: Directory not found"; exit 1; }
-         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
-         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-         sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          echo "Adding KernelSU..."
+          mkdir -p kernel_workspace/kernel_platform
+          cd kernel_workspace/kernel_platform || { echo "Error: Directory not found"; exit 1; }
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          cd KernelSU-Next || { echo "Error: Directory not found"; exit 1; }
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       - name: Apply SUSFS Patches
         run: |
