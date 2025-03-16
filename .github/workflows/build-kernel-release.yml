@@ -82,24 +82,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set environment variables
-      - name: Set Environment Variables
-        run: |
-          export KSU_GIT_VERSION=$(git rev-parse --short HEAD)
-          echo "KSU_GIT_VERSION=${KSU_GIT_VERSION}" >> $GITHUB_ENV
-          export OUT_DIR=/path/to/output
-          echo "OUT_DIR=${OUT_DIR}" >> $GITHUB_ENV
-
       # Get the Latest Tag from GitHub
       - name: Generate and Create New Tag
         run: |
             # Fetch the latest tag from GitHub (this is the latest tag based on the GitHub API)
             LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
             if [ -z "$LATEST_TAG" ]; then
-              LATEST_TAG="v1.5.5-r0"  # Default to v1.5.5-0 if no tag exists
+              LATEST_TAG="v1.5.5-r0"  # Default to v1.5.3-0 if no tag exists
             fi
             
-            # Increment the suffix (e.g., v1.5.5-0 becomes v1.5.5-1)
+            # Increment the suffix (e.g., v1.5.3-0 becomes v1.5.3-1)
             NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
             
             # Output the new tag to be used
