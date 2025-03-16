@@ -92,12 +92,12 @@ jobs:
           cd "$CONFIG/kernel_platform"
           
           echo "Adding KernelSU..."
-          curl -L "https://raw.githubusercontent.com/tiann/KernelSU/refs/heads/main/kernel/setup.sh" | bash -s main
-          #cd ./KernelSU-Next/kernel
-          #sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
+          ccd kernel_workspace/kernel_platform
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          cd KernelSU-Next
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       - name: Apply SUSFS Patches
         run: |
@@ -128,7 +128,8 @@ jobs:
           # Apply additional patch
           cp ../../../kernel_patches/next/next_hooks.patch ./
           patch -p1 --fuzz=3 < ./next_hooks.patch
-          
+
+                    
       - name: Apply Hide Stuff Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -174,7 +175,19 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
-          
+          # Apply VFS fix changes directly
+          cd ../  # Move back to kernel_platform directory
+          sed -i '/#include "selinux\/selinux.h"/a \
+          bool ksu_vfs_read_hook = true;\
+          bool ksu_execveat_hook = true;\
+          bool ksu_input_hook = true;\
+          EXPORT_SYMBOL(ksu_vfs_read_hook);\
+          EXPORT_SYMBOL(ksu_execveat_hook);\
+          EXPORT_SYMBOL(ksu_input_hook);' kernel/ksud.c || true
+          sed -i '/#include <linux\/types.h>/a \
+          extern bool ksu_vfs_read_hook;\
+          extern bool ksu_execveat_hook;\
+          extern bool ksu_input_hook;' kernel/ksud.h || true
           echo "Running sed commands..."
 
           sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
@@ -183,9 +196,9 @@ jobs:
           
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./msm-kernel/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./external/dtc/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./msm-kernel/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./external/dtc/scripts/setlocalversion
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl || echo "No stamp.bzl!"
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
           sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
