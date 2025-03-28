@@ -210,7 +210,7 @@ jobs:
               --config=stamp \
               --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
               --ignore_missing_projects \
-              --lto=full \
+              --lto=thin \
               -o "$(pwd)/out"
           else
             ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} gki
